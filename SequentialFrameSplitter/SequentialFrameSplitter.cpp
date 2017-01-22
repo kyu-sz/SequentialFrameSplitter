@@ -5,14 +5,17 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
-#include "utils.h"
+#include "optical_flow_judger.h"
 
 using namespace std;
 using namespace cv;
 using std::cout;
 
-string GetName(string path);
+#define OPTICAL_FLOW_THRESHOLD 0.5
+
+string GetName(const string& path);
 
 int main(int argc, char *argv[]) {
 	if (argc < 1) {
@@ -40,33 +43,51 @@ int main(int argc, char *argv[]) {
 		}
 
 		Mat frame, prev_frame;
-		Mat prev_gray, gray, flow, flow_vis;
-		namedWindow(name + " optical flow", 1);
+		Mat prev_gray, gray;
+		int seq_cnt = 0;
+		
+		stringstream ss;
+		ss << name << '_' << seq_cnt << ".avi";
+		VideoWriter writer(ss.str(),
+			CV_FOURCC_DEFAULT,
+			cap.get(CAP_PROP_FPS),
+			Size(cap.get(CV_CAP_PROP_FRAME_WIDTH), cap.get(CV_CAP_PROP_FRAME_HEIGHT)));
 		while (true) {
 			cap >> frame;
 			if (frame.empty()) break;
-			resize(frame, frame, Size(frame.cols / 8, frame.rows / 8));
-			imshow(name + " origin", frame);
+			imshow("Origin", frame);
 
 			double t = (double)cvGetTickCount();
 
 			cvtColor(frame, gray, CV_BGR2GRAY);
 
 			if (!prev_frame.empty()) {
-				calcOpticalFlowFarneback(prev_gray, gray, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
+				bool is_consecutive = true;
+
+				is_consecutive = is_consecutive && OpticalFlowJudge(prev_gray, gray, true);
 
 				t = (double)cvGetTickCount() - t;
 				cout << "cost time: " << t / ((double)cvGetTickFrequency()*1000.) << endl;
 
-				MotionToColor(flow, flow_vis);
-				imshow(name + " optical flow", flow_vis);
-				waitKey(1);
+				if (is_consecutive) waitKey(1);
+				else
+				{
+					waitKey(0);
+
+					ss.str(std::string());
+					ss << name << '_' << ++seq_cnt << ".avi";
+					writer.open(ss.str(),
+						CV_FOURCC_DEFAULT,
+						cap.get(CAP_PROP_FPS),
+						Size(cap.get(CV_CAP_PROP_FRAME_WIDTH), cap.get(CV_CAP_PROP_FRAME_HEIGHT)));
+				}
 			}
 
-			std::swap(prev_frame, frame);
-			std::swap(prev_gray, gray);
+			prev_frame = frame;
+			prev_gray = gray;
 		}
 
+		cout << "Finished processing " << video_path << "! Split " << seq_cnt << " sequences." << endl;
 		++success_cnt;
 	}
 
@@ -77,12 +98,13 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-string GetName(string path)
+string GetName(const string& path)
 {
 	const auto last_slash = path.rfind('/');
 	const auto last_back_slash = path.rfind('\\');
+	const auto dot_pos = path.rfind('.');
 	const auto starting =
 		(last_slash == string::npos || (last_back_slash != string::npos && last_back_slash > last_slash)) ?
 		last_back_slash : last_slash;
-	return path.substr(starting + 1);
+	return path.substr(starting + 1, dot_pos - starting - 1);
 }

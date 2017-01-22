@@ -1,11 +1,37 @@
 #include "stdafx.h"
 
-#include "utils.h"
+#include "optical_flow_judger.h"
 
 using namespace std;
 using namespace cv;
 
 #define UNKNOWN_FLOW_THRESH 1e9  
+
+bool OpticalFlowJudge(const Mat& prev_gray, const Mat& gray, bool vis)
+{
+	// Down sampling to reduce noise.
+	Mat gray_down, prev_gray_down;
+	pyrDown(prev_gray, prev_gray_down);
+	pyrDown(gray, gray_down);
+
+	Mat flow, flow_vis;
+	calcOpticalFlowFarneback(prev_gray_down, gray_down, flow, 0.5, 3, 15, 3, 5, 1.2, 0);
+
+	// Split the optical flow map into x and y components.
+	Mat flow_components[2];
+	split(flow, flow_components);
+	// Down sampling to reduce noise.
+	pyrDown(flow_components[0], flow_components[0]);
+	pyrDown(flow_components[1], flow_components[1]);
+	// TODO: Judge whether the neighboring two frames are consecutive according to the turbulence of the optical flow map.
+
+	if (vis) {
+		MotionToColor(flow, flow_vis);
+		imshow("Optical flow", flow_vis);
+	}
+
+	return true;
+}
 
 // Color encoding of flow vectors from:  
 // http://members.shaw.ca/quadibloc/other/colint.htm  

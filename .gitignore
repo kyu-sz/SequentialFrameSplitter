@@ -249,4 +249,9 @@ paket-files/
 
 # JetBrains Rider
 .idea/
+
+# Visual Studio files
 *.sln.iml
+
+# Generated video sequences
+*.avi

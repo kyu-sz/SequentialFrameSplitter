@@ -10,6 +10,7 @@
 
 using namespace std;
 using namespace cv;
+using std::cout;
 
 string GetName(string path);
 
@@ -25,7 +26,8 @@ int main(int argc, char *argv[]) {
 
 	int success_cnt = 0, failure_cnt = 0;
 	vector<string> failure_list;
-	while (video_list >> video_path) {
+	while (video_list) {
+		if (!getline(video_list, video_path)) break;
 		cout << "Processing video " << video_path << endl;
 		const auto name = GetName(video_path);
 
